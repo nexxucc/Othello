@@ -1,0 +1,258 @@
+<html>
+<head>
+<link rel='stylesheet' href='https://app.scribbler.live/codemirror/codemirror.css'>
+<link rel='stylesheet' href='https://app.scribbler.live/codemirror/cobalt.css'>
+<link rel='stylesheet' href='https://app.scribbler.live/codemirror/duotone-light.css'>
+<link rel='stylesheet' href='https://app.scribbler.live/codemirror/show-hint.css'>
+<link rel='stylesheet' href='https://app.scribbler.live/css/pico.min.css'>
+<link rel='stylesheet' href='https://app.scribbler.live/css/style.css'>
+<title>New JSNB:Scribbler Notebook</title>
+</head>
+<body>
+<br>
+<div class="container">
+
+<script>
+
+document.body.style.fontFamily = 'Arial, sans-serif';
+document.body.style.textAlign = 'center';
+document.body.style.backgroundColor = '#000000'; 
+document.body.style.margin = '0';
+document.body.style.padding = '0';
+
+const title = document.createElement('h1');
+title.textContent = 'Othello Game';
+title.style.marginTop = '20px';
+title.style.color = '#FFFFFF'; 
+document.body.appendChild(title);
+
+const gameContainer = document.createElement('div');
+gameContainer.style.display = 'flex';
+gameContainer.style.justifyContent = 'center';
+gameContainer.style.alignItems = 'center';
+gameContainer.style.flexDirection = 'column';
+gameContainer.style.height = '100vh'; 
+document.body.appendChild(gameContainer);
+
+const winnerDisplay = document.createElement('div');
+winnerDisplay.id = 'winner-display';
+winnerDisplay.style.marginTop = '20px';
+winnerDisplay.style.fontSize = '20px';
+winnerDisplay.style.fontWeight = 'bold';
+winnerDisplay.style.color = '#FFFFFF'; 
+gameContainer.appendChild(winnerDisplay);
+
+const gameBoard = document.createElement('div');
+gameBoard.id = 'game-board';
+gameBoard.style.display = 'grid';
+gameBoard.style.gridTemplateColumns = 'repeat(8, 50px)';
+gameBoard.style.gridTemplateRows = 'repeat(8, 50px)';
+gameBoard.style.gap = '4px';
+gameBoard.style.backgroundColor = '#000000';
+gameBoard.style.border = '25px solid #000000';
+gameBoard.style.borderRadius = '13px';
+gameContainer.appendChild(gameBoard);
+
+const board = Array(8).fill(null).map(() => Array(8).fill(null));
+const directions = [
+    [-1, 0], [1, 0], [0, -1], [0, 1],
+    [-1, -1], [-1, 1], [1, -1], [1, 1]
+];
+let currentPlayer = 'black';
+
+function initializeBoard() {
+    board[3][3] = 'white';
+    board[3][4] = 'black';
+    board[4][3] = 'black';
+    board[4][4] = 'white';
+}
+
+function renderBoard() {
+    gameBoard.innerHTML = '';
+    board.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+            const cellDiv = document.createElement('div');
+            cellDiv.style.width = '50px';
+            cellDiv.style.height = '50px';
+            cellDiv.style.backgroundColor = '#006600';
+            cellDiv.style.display = 'flex';
+            cellDiv.style.justifyContent = 'center';
+            cellDiv.style.alignItems = 'center';
+            cellDiv.style.position = 'relative';
+            cellDiv.classList.add('cell');
+
+            if (cell) {
+                const piece = document.createElement('div');
+                piece.style.width = '40px';
+                piece.style.height = '40px';
+                piece.style.borderRadius = '50%';
+                piece.style.backgroundColor = cell === 'black' ? 'black' : 'white';
+                cellDiv.appendChild(piece);
+            }
+
+            cellDiv.addEventListener('click', () => makeMove(rowIndex, colIndex));
+            gameBoard.appendChild(cellDiv);
+        });
+    });
+    showValidCells(currentPlayer);
+}
+
+function isValidMove(row, col, player) {
+    if (board[row][col]) return false;
+    return directions.some(([dx, dy]) => {
+        let x = row + dx, y = col + dy, foundOpponent = false;
+        while (x >= 0 && y >= 0 && x < 8 && y < 8 && board[x][y]) {
+            if (board[x][y] === player) return foundOpponent;
+            foundOpponent = true;
+            x += dx;
+            y += dy;
+        }
+        return false;
+    });
+}
+
+function getValidMoves(player) {
+    const validMoves = [];
+    board.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+            if (isValidMove(rowIndex, colIndex, player)) {
+                validMoves.push([rowIndex, colIndex]);
+            }
+        });
+    });
+    return validMoves;
+}
+
+function makeMove(row, col) {
+    if (!isValidMove(row, col, currentPlayer)) return;
+    board[row][col] = currentPlayer;
+    flipPieces(row, col, currentPlayer);
+    currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+    renderBoard();
+
+    if (checkGameEnd()) return;
+
+    const validMoves = getValidMoves(currentPlayer);
+    if (validMoves.length === 0) {
+        alert(`${currentPlayer === 'black' ? 'Black' : 'White'} has no moves! Turn skipped.`);
+        currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+        if (checkGameEnd()) return;
+    }
+
+    if (currentPlayer === 'white') {
+        setTimeout(aiMove, 500);
+    }
+}
+
+function flipPieces(row, col, player) {
+    directions.forEach(([dx, dy]) => {
+        let x = row + dx, y = col + dy, piecesToFlip = [];
+        while (x >= 0 && y >= 0 && x < 8 && y < 8 && board[x][y]) {
+            if (board[x][y] === player) {
+                piecesToFlip.forEach(([fx, fy]) => board[fx][fy] = player);
+                return;
+            }
+            piecesToFlip.push([x, y]);
+            x += dx;
+            y += dy;
+        }
+    });
+}
+
+function aiMove() {
+    const validMoves = getValidMoves('white');
+    if (!validMoves.length) {
+        currentPlayer = 'black';
+        alert('AI (White) has no moves! Turn skipped.');
+        if (checkGameEnd()) return;
+        return;
+    }
+    let bestMove = null, bestValue = -Infinity;
+    validMoves.forEach(([row, col]) => {
+        const boardCopy = JSON.parse(JSON.stringify(board));
+        boardCopy[row][col] = 'white';
+        const moveValue = minimax(boardCopy, 3, false);
+        if (moveValue > bestValue) {
+            bestValue = moveValue;
+            bestMove = [row, col];
+        }
+    });
+    if (bestMove) makeMove(bestMove[0], bestMove[1]);
+}
+
+function minimax(board, depth, maximizingPlayer) {
+    if (depth === 0) return evaluateBoard(board);
+    const moves = getValidMoves(maximizingPlayer ? 'white' : 'black');
+    if (!moves.length) return evaluateBoard(board);
+
+    if (maximizingPlayer) {
+        let maxEval = -Infinity;
+        moves.forEach(([row, col]) => {
+            const boardCopy = JSON.parse(JSON.stringify(board));
+            boardCopy[row][col] = 'white';
+            maxEval = Math.max(maxEval, minimax(boardCopy, depth - 1, false));
+        });
+        return maxEval;
+    } else {
+        let minEval = Infinity;
+        moves.forEach(([row, col]) => {
+            const boardCopy = JSON.parse(JSON.stringify(board));
+            boardCopy[row][col] = 'black';
+            minEval = Math.min(minEval, minimax(boardCopy, depth - 1, true));
+        });
+        return minEval;
+    }
+}
+
+function evaluateBoard(board) {
+    let blackScore = 0, whiteScore = 0;
+    board.flat().forEach(cell => {
+        if (cell === 'black') blackScore++;
+        if (cell === 'white') whiteScore++;
+    });
+    return whiteScore - blackScore;
+}
+
+function checkGameEnd() {
+    const blackMoves = getValidMoves('black');
+    const whiteMoves = getValidMoves('white');
+    if (blackMoves.length === 0 && whiteMoves.length === 0) {
+        declareWinner();
+        return true;
+    }
+    return false;
+}
+
+function declareWinner() {
+    let blackScore = 0, whiteScore = 0;
+    board.flat().forEach(cell => {
+        if (cell === 'black') blackScore++;
+        if (cell === 'white') whiteScore++;
+    });
+
+    const message = blackScore > whiteScore
+        ? 'Black wins!'
+        : whiteScore > blackScore
+        ? 'White wins!'
+        : 'It\'s a tie!';
+    winnerDisplay.textContent = message;
+}
+
+function showValidCells(player) {
+    const cells = gameBoard.querySelectorAll('.cell');
+
+    cells.forEach(cell => cell.style.backgroundColor = '#006600');
+
+    const validMoves = getValidMoves(player);
+    validMoves.forEach(([row, col]) => {
+        const cellIndex = row * 8 + col;
+        cells[cellIndex].style.backgroundColor = '#073f07'; 
+    });
+}
+
+initializeBoard();
+renderBoard();
+
+</script>
+
+<article ondblclick="sandbox.toggleEditor(0)" style="display:flex" id="result0"><p class="status" id="status0" style="display: inline;">[4]<br><span style="font-size:8px">2ms<span></span></span></p> <div class="output" id="output0" style="display: inline;"></div></article></div></body></html>
