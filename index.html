@@ -26,6 +26,14 @@ title.style.marginTop = '20px';
 title.style.color = '#FFFFFF'; 
 document.body.appendChild(title);
 
+const sourceLink = document.createElement('a');
+sourceLink.href = 'https://github.com/nexxucc/Othello';
+sourceLink.textContent = 'View source on GitHub';
+sourceLink.style.color = '#9ecbff';
+sourceLink.style.display = 'inline-block';
+sourceLink.style.marginBottom = '8px';
+document.body.appendChild(sourceLink);
+
 const gameContainer = document.createElement('div');
 gameContainer.style.display = 'flex';
 gameContainer.style.justifyContent = 'center';
